@@ -1,0 +1,44 @@
+-- FocusHub Database: Master Migration File
+-- Run this file to execute all migrations in order
+-- Or run each file individually in numbered order
+
+-- IMPORTANT: Run these files in order:
+-- 1. 001_create_profiles.sql     - User profiles table
+-- 2. 002_profile_trigger.sql     - Auto-create profile on signup
+-- 3. 003_create_rooms.sql        - Study rooms, members, messages
+-- 4. 004_create_sessions.sql     - Focus sessions, daily stats, goals
+-- 5. 005_create_achievements.sql - Achievements and gamification
+-- 6. 006_seed_achievements.sql   - Default achievement definitions
+-- 7. 007_create_notifications.sql - Notifications and activity
+-- 8. 008_admin_functions.sql     - Admin functions and policies
+-- 9. 009_realtime_setup.sql      - Enable realtime subscriptions
+-- 10. 010_room_access_and_join_updates.sql - Room access policy + join helper functions
+-- 11. 011_backfill_leaderboard_entries.sql - One-time leaderboard backfill from historical sessions
+-- 12. 012_set_admin_profile_role.sql - One-time admin role assignment for configured admin email
+
+-- You can copy-paste each file's content into the Supabase SQL Editor
+-- Or use the Supabase CLI: supabase db push
+
+-- Database Summary:
+-- ================
+-- Tables:
+--   - profiles (user profiles, stats, settings)
+--   - rooms (study rooms)
+--   - room_members (room participants)
+--   - room_messages (chat messages)
+--   - focus_sessions (pomodoro sessions)
+--   - daily_stats (aggregated daily statistics)
+--   - weekly_goals (weekly targets)
+--   - achievements (achievement definitions)
+--   - user_achievements (earned achievements)
+--   - leaderboard_entries (rankings)
+--   - friendships (friend relationships)
+--   - notifications (user notifications)
+--   - activity_feed (public activity)
+
+-- Features:
+--   - Row Level Security (RLS) on all tables
+--   - Auto-updating timestamps
+--   - Profile auto-creation on signup
+--   - Admin functions for platform stats
+--   - Realtime enabled for live updates
