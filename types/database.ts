@@ -560,6 +560,53 @@ export interface Database {
           created_at?: string
         }
       }
+      study_planner_items: {
+        Row: {
+          id: string
+          user_id: string
+          room_id: string | null
+          title: string
+          description: string | null
+          due_date: string | null
+          priority: 'low' | 'medium' | 'high'
+          status: 'todo' | 'in_progress' | 'completed'
+          estimated_minutes: number | null
+          completed_at: string | null
+          order_index: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          room_id?: string | null
+          title: string
+          description?: string | null
+          due_date?: string | null
+          priority?: 'low' | 'medium' | 'high'
+          status?: 'todo' | 'in_progress' | 'completed'
+          estimated_minutes?: number | null
+          completed_at?: string | null
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          room_id?: string | null
+          title?: string
+          description?: string | null
+          due_date?: string | null
+          priority?: 'low' | 'medium' | 'high'
+          status?: 'todo' | 'in_progress' | 'completed'
+          estimated_minutes?: number | null
+          completed_at?: string | null
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Functions: {
       is_admin: {

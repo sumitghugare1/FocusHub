@@ -17,11 +17,7 @@ import {
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
-import {
-  currentUser as mockCurrentUser,
-  formatMinutesToHours,
-  formatTimeAgo,
-} from '@/lib/mock-data'
+import { formatMinutesToHours, formatTimeAgo } from '@/lib/format'
 import { createClient } from '@/lib/supabase/server'
 import { toAppUser } from '@/lib/auth/current-user'
 import { WeeklyGoalEditor } from '@/components/dashboard/weekly-goal-editor'
@@ -36,7 +32,22 @@ export default async function DashboardPage() {
     data: { user: authUser },
   } = await supabase.auth.getUser()
 
-  let currentUser = mockCurrentUser
+  let currentUser = {
+    id: authUser?.id ?? 'guest',
+    name: authUser?.user_metadata?.full_name ?? authUser?.email?.split('@')[0] ?? 'Student',
+    email: authUser?.email ?? '',
+    avatar: undefined,
+    role: 'user' as const,
+    createdAt: new Date().toISOString(),
+    totalStudyTime: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    sessionsCompleted: 0,
+    level: 1,
+    xp: 0,
+    badges: [],
+    status: 'offline' as const,
+  }
 
   if (authUser) {
     const { data: profile } = await supabase

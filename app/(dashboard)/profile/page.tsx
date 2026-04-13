@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -31,9 +31,10 @@ import {
   Heart,
   Zap,
 } from 'lucide-react'
-import { availableBadges, formatMinutesToHours, formatDate } from '@/lib/mock-data'
+import { formatDate, formatMinutesToHours } from '@/lib/format'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import type { Badge as AppBadge } from '@/types'
 
 const badgeIcons: Record<string, React.ReactNode> = {
   sunrise: <Sunrise className="h-5 w-5" />,
@@ -49,6 +50,23 @@ const badgeIcons: Record<string, React.ReactNode> = {
 export default function ProfilePage() {
   const { user: currentUser } = useCurrentUser()
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [availableBadges, setAvailableBadges] = useState<AppBadge[]>([])
+
+  useEffect(() => {
+    const loadAvailableBadges = async () => {
+      const response = await fetch('/api/profile/badges', { cache: 'no-store' })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok || !payload?.success) {
+        setAvailableBadges([])
+        return
+      }
+
+      setAvailableBadges(payload.availableBadges ?? [])
+    }
+
+    void loadAvailableBadges()
+  }, [])
 
   const xpProgress = (currentUser.xp % 1000) / 10
   const xpToNextLevel = 1000 - (currentUser.xp % 1000)

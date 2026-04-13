@@ -35,7 +35,7 @@ import {
   Pie,
   Cell,
 } from 'recharts'
-import { formatMinutesToHours } from '@/lib/mock-data'
+import { formatMinutesToHours } from '@/lib/format'
 import { useCurrentUser } from '@/hooks/use-current-user'
 
 const timeRanges = [

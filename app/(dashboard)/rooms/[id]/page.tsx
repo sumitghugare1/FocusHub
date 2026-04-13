@@ -49,7 +49,10 @@ import {
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { defaultTimerSettings } from '@/lib/mock-data'
+import { defaultTimerSettings } from '@/lib/constants/timer-settings'
+import { RoomSharedBoard } from '@/components/rooms/room-shared-board'
+import { useCurrentUser } from '@/hooks/use-current-user'
+import { StudyPlanner } from '@/components/planner/study-planner'
 
 async function copyToClipboard(text: string) {
   try {
@@ -111,6 +114,7 @@ export default function RoomPage() {
   const router = useRouter()
   const params = useParams()
   const roomId = String(params.id ?? '')
+  const { user: currentUser } = useCurrentUser()
 
   const [room, setRoom] = useState<RoomDetail | null>(null)
   const [isLoadingRoom, setIsLoadingRoom] = useState(true)
@@ -660,6 +664,19 @@ export default function RoomPage() {
           </CardContent>
         </Card>
       </div>
+
+      <RoomSharedBoard
+        roomId={room.id}
+        currentUserId={currentUser.id || undefined}
+        canManageAll={room.isHost}
+      />
+
+      <StudyPlanner
+        roomId={room.id}
+        roomName={room.name}
+        currentUserId={currentUser.id || undefined}
+        canManageAll={room.isHost}
+      />
     </div>
   )
 }

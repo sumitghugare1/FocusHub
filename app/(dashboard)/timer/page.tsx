@@ -30,7 +30,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { defaultTimerSettings } from '@/lib/mock-data'
+import { defaultTimerSettings } from '@/lib/constants/timer-settings'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { useCurrentUser } from '@/hooks/use-current-user'
 

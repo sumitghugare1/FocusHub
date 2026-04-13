@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createRouteClient } from '@/lib/supabase/route-client'
-import { defaultTimerSettings } from '@/lib/mock-data'
+import { defaultTimerSettings } from '@/lib/constants/timer-settings'
 
 type TimerPayload = {
   focusDuration: number

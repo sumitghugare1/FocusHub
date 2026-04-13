@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   Activity,
   LayoutDashboard,
+  BookOpen,
   Timer,
   Users,
   BarChart3,
@@ -32,6 +33,7 @@ interface SidebarProps {
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { title: 'Timer', href: '/timer', icon: Timer },
+  { title: 'Study Planner', href: '/planner', icon: BookOpen },
   { title: 'Study Rooms', href: '/rooms', icon: Users },
   { title: 'Activity', href: '/activity', icon: Activity },
   { title: 'Analytics', href: '/analytics', icon: BarChart3 },

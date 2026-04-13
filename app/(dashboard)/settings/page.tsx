@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,12 +37,12 @@ import {
   Trash2,
   Save,
 } from 'lucide-react'
-import { defaultTimerSettings } from '@/lib/mock-data'
+import { defaultTimerSettings } from '@/lib/constants/timer-settings'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { useCurrentUser } from '@/hooks/use-current-user'
 
 export default function SettingsPage() {
-  const { user: currentUser } = useCurrentUser()
+  const { user: currentUser, refresh } = useCurrentUser()
   const [timerSettings, setTimerSettings] = useState(defaultTimerSettings)
   const [notifications, setNotifications] = useState({
     sessionComplete: true,
@@ -51,8 +51,171 @@ export default function SettingsPage() {
     weeklyReport: true,
     roomInvites: true,
     achievements: true,
+    marketingEmails: false,
+    productUpdates: true,
   })
   const [theme, setTheme] = useState('dark')
+  const [compactMode, setCompactMode] = useState(false)
+  const [accountName, setAccountName] = useState('')
+  const [accountEmail, setAccountEmail] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [prefsMessage, setPrefsMessage] = useState<string | null>(null)
+  const [accountMessage, setAccountMessage] = useState<string | null>(null)
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
+  const [timerMessage, setTimerMessage] = useState<string | null>(null)
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false)
+  const [isSavingAccount, setIsSavingAccount] = useState(false)
+  const [isSavingPassword, setIsSavingPassword] = useState(false)
+  const [isSavingTimer, setIsSavingTimer] = useState(false)
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const [settingsResponse, timerResponse] = await Promise.all([
+        fetch('/api/settings', { cache: 'no-store' }),
+        fetch('/api/timer-settings', { cache: 'no-store' }),
+      ])
+
+      const settingsPayload = await settingsResponse.json().catch(() => null)
+      const timerPayload = await timerResponse.json().catch(() => null)
+
+      if (settingsResponse.ok && settingsPayload?.success) {
+        setTheme(settingsPayload.appearance?.theme ?? 'dark')
+        setCompactMode(Boolean(settingsPayload.appearance?.compactMode))
+        setNotifications((prev) => ({
+          ...prev,
+          ...(settingsPayload.notifications ?? {}),
+        }))
+        setAccountName(settingsPayload.account?.name ?? currentUser.name)
+        setAccountEmail(settingsPayload.account?.email ?? currentUser.email)
+      } else {
+        setAccountName(currentUser.name)
+        setAccountEmail(currentUser.email)
+      }
+
+      if (timerResponse.ok && timerPayload?.success && timerPayload?.timer) {
+        setTimerSettings((prev) => ({
+          ...prev,
+          focusDuration: timerPayload.timer.focusDuration,
+          shortBreakDuration: timerPayload.timer.shortBreakDuration,
+          longBreakDuration: timerPayload.timer.longBreakDuration,
+          sessionsBeforeLongBreak: timerPayload.timer.sessionsBeforeLongBreak,
+          autoStartBreaks: timerPayload.timer.autoStartBreaks,
+          autoStartPomodoros: timerPayload.timer.autoStartPomodoros,
+          soundEnabled: timerPayload.timer.soundEnabled,
+        }))
+      }
+    }
+
+    void loadSettings()
+  }, [currentUser.email, currentUser.name])
+
+  const savePreferences = async () => {
+    setIsSavingPrefs(true)
+    setPrefsMessage(null)
+
+    const response = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appearance: {
+          theme,
+          compactMode,
+        },
+        notifications,
+      }),
+    })
+
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      setPrefsMessage(payload?.error ?? 'Unable to save preferences')
+      setIsSavingPrefs(false)
+      return
+    }
+
+    setPrefsMessage('Preferences saved')
+    setIsSavingPrefs(false)
+  }
+
+  const saveTimerSettings = async () => {
+    setIsSavingTimer(true)
+    setTimerMessage(null)
+
+    const response = await fetch('/api/timer-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        focusDuration: timerSettings.focusDuration,
+        shortBreakDuration: timerSettings.shortBreakDuration,
+        longBreakDuration: timerSettings.longBreakDuration,
+        sessionsBeforeLongBreak: timerSettings.sessionsBeforeLongBreak,
+        autoStartBreaks: timerSettings.autoStartBreaks,
+        autoStartPomodoros: timerSettings.autoStartPomodoros,
+        soundEnabled: timerSettings.soundEnabled,
+      }),
+    })
+
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      setTimerMessage(payload?.error ?? 'Unable to save timer settings')
+      setIsSavingTimer(false)
+      return
+    }
+
+    setTimerMessage('Timer settings saved')
+    setIsSavingTimer(false)
+  }
+
+  const saveAccount = async () => {
+    setIsSavingAccount(true)
+    setAccountMessage(null)
+
+    const response = await fetch('/api/settings/account', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: accountName, email: accountEmail }),
+    })
+
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      setAccountMessage(payload?.error ?? 'Unable to save account details')
+      setIsSavingAccount(false)
+      return
+    }
+
+    setAccountMessage('Account details saved')
+    setIsSavingAccount(false)
+    await refresh()
+  }
+
+  const savePassword = async () => {
+    setIsSavingPassword(true)
+    setPasswordMessage(null)
+
+    const response = await fetch('/api/settings/account', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      }),
+    })
+
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      setPasswordMessage(payload?.error ?? 'Unable to update password')
+      setIsSavingPassword(false)
+      return
+    }
+
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordMessage('Password updated')
+    setIsSavingPassword(false)
+  }
 
   return (
     <div className="space-y-6">
@@ -123,8 +286,14 @@ export default function SettingsPage() {
                   <FieldLabel className="mb-0">Compact Mode</FieldLabel>
                   <p className="text-sm text-muted-foreground">Use smaller UI elements</p>
                 </div>
-                <Switch />
+                <Switch checked={compactMode} onCheckedChange={setCompactMode} />
               </div>
+
+              <Button onClick={() => void savePreferences()} disabled={isSavingPrefs}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSavingPrefs ? 'Saving...' : 'Save Preferences'}
+              </Button>
+              {prefsMessage && <p className="text-sm text-muted-foreground">{prefsMessage}</p>}
             </CardContent>
           </Card>
 
@@ -142,7 +311,12 @@ export default function SettingsPage() {
                     <p className="text-sm text-muted-foreground">Play sounds for timer events</p>
                   </div>
                 </div>
-                <Switch checked={timerSettings.soundEnabled} />
+                <Switch
+                  checked={timerSettings.soundEnabled}
+                  onCheckedChange={(checked) =>
+                    setTimerSettings((prev) => ({ ...prev, soundEnabled: checked }))
+                  }
+                />
               </div>
 
               <Field>
@@ -152,6 +326,11 @@ export default function SettingsPage() {
                 </div>
                 <Slider defaultValue={[75]} max={100} step={5} />
               </Field>
+              <Button onClick={() => void savePreferences()} disabled={isSavingPrefs}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSavingPrefs ? 'Saving...' : 'Save Preferences'}
+              </Button>
+              {prefsMessage && <p className="text-sm text-muted-foreground">{prefsMessage}</p>}
             </CardContent>
           </Card>
         </TabsContent>
@@ -277,6 +456,14 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <div className="flex items-center gap-3">
+            <Button onClick={() => void saveTimerSettings()} disabled={isSavingTimer}>
+              <Save className="mr-2 h-4 w-4" />
+              {isSavingTimer ? 'Saving...' : 'Save Timer Settings'}
+            </Button>
+            {timerMessage && <p className="text-sm text-muted-foreground">{timerMessage}</p>}
+          </div>
         </TabsContent>
 
         {/* Notifications Settings */}
@@ -308,6 +495,12 @@ export default function SettingsPage() {
                   />
                 </div>
               ))}
+
+              <Button onClick={() => void savePreferences()} disabled={isSavingPrefs}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSavingPrefs ? 'Saving...' : 'Save Preferences'}
+              </Button>
+              {prefsMessage && <p className="text-sm text-muted-foreground">{prefsMessage}</p>}
             </CardContent>
           </Card>
 
@@ -322,14 +515,24 @@ export default function SettingsPage() {
                   <FieldLabel className="mb-0">Marketing Emails</FieldLabel>
                   <p className="text-sm text-muted-foreground">Receive news and updates</p>
                 </div>
-                <Switch />
+                <Switch
+                  checked={notifications.marketingEmails}
+                  onCheckedChange={(checked) =>
+                    setNotifications((prev) => ({ ...prev, marketingEmails: checked }))
+                  }
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <FieldLabel className="mb-0">Product Updates</FieldLabel>
                   <p className="text-sm text-muted-foreground">Learn about new features</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch
+                  checked={notifications.productUpdates}
+                  onCheckedChange={(checked) =>
+                    setNotifications((prev) => ({ ...prev, productUpdates: checked }))
+                  }
+                />
               </div>
             </CardContent>
           </Card>
@@ -346,16 +549,26 @@ export default function SettingsPage() {
               <FieldGroup className="space-y-4">
                 <Field>
                   <FieldLabel htmlFor="account-name">Name</FieldLabel>
-                  <Input id="account-name" defaultValue={currentUser.name} />
+                  <Input
+                    id="account-name"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="account-email">Email</FieldLabel>
-                  <Input id="account-email" type="email" defaultValue={currentUser.email} />
+                  <Input
+                    id="account-email"
+                    type="email"
+                    value={accountEmail}
+                    onChange={(e) => setAccountEmail(e.target.value)}
+                  />
                 </Field>
-                <Button>
+                <Button onClick={() => void saveAccount()} disabled={isSavingAccount}>
                   <Save className="mr-2 h-4 w-4" />
-                  Save Changes
+                  {isSavingAccount ? 'Saving...' : 'Save Changes'}
                 </Button>
+                {accountMessage && <p className="text-sm text-muted-foreground">{accountMessage}</p>}
               </FieldGroup>
             </CardContent>
           </Card>
@@ -369,17 +582,35 @@ export default function SettingsPage() {
               <FieldGroup className="space-y-4">
                 <Field>
                   <FieldLabel htmlFor="current-password">Current Password</FieldLabel>
-                  <Input id="current-password" type="password" />
+                  <Input
+                    id="current-password"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="new-password">New Password</FieldLabel>
-                  <Input id="new-password" type="password" />
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="confirm-password">Confirm New Password</FieldLabel>
-                  <Input id="confirm-password" type="password" />
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
                 </Field>
-                <Button>Update Password</Button>
+                <Button onClick={() => void savePassword()} disabled={isSavingPassword}>
+                  {isSavingPassword ? 'Updating...' : 'Update Password'}
+                </Button>
+                {passwordMessage && <p className="text-sm text-muted-foreground">{passwordMessage}</p>}
               </FieldGroup>
             </CardContent>
           </Card>
