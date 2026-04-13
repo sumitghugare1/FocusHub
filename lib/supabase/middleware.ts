@@ -6,6 +6,9 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  const isPrefetchRequest =
+    request.headers.has('next-router-prefetch') || request.headers.get('purpose') === 'prefetch'
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -41,6 +44,12 @@ export async function updateSession(request: NextRequest) {
   const isProtectedPath = protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))
   const isAdminPath = adminPaths.some(path => request.nextUrl.pathname.startsWith(path))
   const isAdminLoginPath = request.nextUrl.pathname === adminLoginPath
+
+  // Prevent login redirects from being cached by client-side route prefetches.
+  // Real navigations still go through the checks below.
+  if (isPrefetchRequest) {
+    return supabaseResponse
+  }
 
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone()
