@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createRouteClient } from '@/lib/supabase/route-client'
+import { flattenNotificationPreferences, normalizeNotificationPreferences } from '@/lib/notifications/preferences'
 
 const updateSchema = z.object({
   appearance: z
@@ -17,6 +18,10 @@ const updateSchema = z.object({
       weeklyReport: z.boolean(),
       roomInvites: z.boolean(),
       achievements: z.boolean(),
+      emailSessionComplete: z.boolean(),
+      emailWeeklyReport: z.boolean(),
+      emailRoomInvites: z.boolean(),
+      emailAchievements: z.boolean(),
       marketingEmails: z.boolean(),
       productUpdates: z.boolean(),
     })
@@ -33,22 +38,7 @@ function normalizeAppearance(value: unknown) {
 }
 
 function normalizeNotifications(value: unknown) {
-  const raw = (value ?? {}) as Record<string, unknown>
-
-  const email = (raw.email ?? {}) as Record<string, unknown>
-  const inApp = (raw.inApp ?? {}) as Record<string, unknown>
-
-  return {
-    sessionComplete:
-      typeof inApp.sessionComplete === 'boolean' ? inApp.sessionComplete : true,
-    breakReminder: typeof inApp.breakReminder === 'boolean' ? inApp.breakReminder : true,
-    streakReminder: typeof inApp.streakReminder === 'boolean' ? inApp.streakReminder : true,
-    weeklyReport: typeof inApp.weeklyReport === 'boolean' ? inApp.weeklyReport : true,
-    roomInvites: typeof inApp.roomInvites === 'boolean' ? inApp.roomInvites : true,
-    achievements: typeof inApp.achievements === 'boolean' ? inApp.achievements : true,
-    marketingEmails: typeof email.marketing === 'boolean' ? email.marketing : false,
-    productUpdates: typeof email.productUpdates === 'boolean' ? email.productUpdates : true,
-  }
+  return flattenNotificationPreferences(normalizeNotificationPreferences(value))
 }
 
 export async function GET(request: NextRequest) {
@@ -125,8 +115,8 @@ export async function PATCH(request: NextRequest) {
 
   const currentSettings = (profile?.settings ?? {}) as Record<string, unknown>
   const currentNotifications = (currentSettings.notifications ?? {}) as Record<string, unknown>
-  const currentEmailNotifications = (currentNotifications.email ?? {}) as Record<string, unknown>
   const currentInAppNotifications = (currentNotifications.inApp ?? {}) as Record<string, unknown>
+  const currentEmailNotifications = (currentNotifications.email ?? {}) as Record<string, unknown>
 
   const nextAppearance = parsed.data.appearance
     ? {
@@ -141,9 +131,12 @@ export async function PATCH(request: NextRequest) {
         ...currentNotifications,
         email: {
           ...currentEmailNotifications,
-          marketing: parsed.data.notifications.marketingEmails,
+          sessionComplete: parsed.data.notifications.emailSessionComplete,
+          weeklyReport: parsed.data.notifications.emailWeeklyReport,
+          roomInvites: parsed.data.notifications.emailRoomInvites,
+          achievements: parsed.data.notifications.emailAchievements,
+          marketingEmails: parsed.data.notifications.marketingEmails,
           productUpdates: parsed.data.notifications.productUpdates,
-          weeklyReport: parsed.data.notifications.weeklyReport,
         },
         inApp: {
           ...currentInAppNotifications,

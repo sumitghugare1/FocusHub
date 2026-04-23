@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createRouteClient } from '@/lib/supabase/route-client'
+import { isEmailConfigured, sendSessionCompleteEmail } from '@/lib/notifications/email'
+import { normalizeNotificationPreferences } from '@/lib/notifications/preferences'
 
 const createSessionSchema = z.object({
   roomId: z.string().uuid().optional().nullable(),
@@ -111,7 +113,9 @@ export async function POST(request: NextRequest) {
 
   let { data: profileBase } = await supabase
     .from('profiles')
-    .select('timezone, total_focus_time, total_sessions, current_streak, longest_streak, xp, level')
+    .select(
+      'timezone, total_focus_time, total_sessions, current_streak, longest_streak, xp, level, full_name, email, settings',
+    )
     .eq('id', user.id)
     .maybeSingle()
 
@@ -128,7 +132,9 @@ export async function POST(request: NextRequest) {
 
     const { data: createdProfile } = await supabase
       .from('profiles')
-      .select('timezone, total_focus_time, total_sessions, current_streak, longest_streak, xp, level')
+      .select(
+        'timezone, total_focus_time, total_sessions, current_streak, longest_streak, xp, level, full_name, email, settings',
+      )
       .eq('id', user.id)
       .maybeSingle()
 
@@ -146,6 +152,10 @@ export async function POST(request: NextRequest) {
   }
 
   const timezone = profileBase?.timezone ?? 'UTC'
+  const notificationPreferences = normalizeNotificationPreferences(profileBase?.settings)
+  const contactEmail = profileBase?.email ?? user.email ?? null
+  const contactName =
+    profileBase?.full_name ?? user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'there'
 
   const { data: createdSession, error: createError } = await supabase
     .from('focus_sessions')
@@ -396,6 +406,39 @@ export async function POST(request: NextRequest) {
       related_id: createdSession.id,
       is_public: true,
     })
+
+    await supabase.from('notifications').insert({
+      user_id: user.id,
+      type: 'system',
+      title: 'Focus session completed',
+      message: `You completed a ${focusMinutes}-minute focus session and earned ${totalXpGain} XP.`,
+      related_type: 'focus_session',
+      related_id: createdSession.id,
+      data: {
+        sessionType: payload.sessionType,
+        durationMinutes: focusMinutes,
+        xpEarned: totalXpGain,
+        streak: currentStreak,
+      },
+    })
+
+    if (
+      contactEmail &&
+      payload.sessionType === 'focus' &&
+      isCompleted &&
+      notificationPreferences.email.sessionComplete &&
+      isEmailConfigured()
+    ) {
+      await sendSessionCompleteEmail({
+        to: contactEmail,
+        userName: contactName,
+        durationMinutes: focusMinutes,
+        sessionType: payload.sessionType,
+        xpEarned: totalXpGain,
+        streak: currentStreak,
+        dashboardUrl: new URL('/dashboard', request.nextUrl.origin).toString(),
+      })
+    }
   }
 
   const weekStart = getWeekStartFromDate(today)

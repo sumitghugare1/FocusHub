@@ -51,6 +51,10 @@ export default function SettingsPage() {
     weeklyReport: true,
     roomInvites: true,
     achievements: true,
+    emailSessionComplete: true,
+    emailWeeklyReport: true,
+    emailRoomInvites: true,
+    emailAchievements: true,
     marketingEmails: false,
     productUpdates: true,
   })
@@ -65,10 +69,12 @@ export default function SettingsPage() {
   const [accountMessage, setAccountMessage] = useState<string | null>(null)
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
   const [timerMessage, setTimerMessage] = useState<string | null>(null)
+  const [emailTestMessage, setEmailTestMessage] = useState<string | null>(null)
   const [isSavingPrefs, setIsSavingPrefs] = useState(false)
   const [isSavingAccount, setIsSavingAccount] = useState(false)
   const [isSavingPassword, setIsSavingPassword] = useState(false)
   const [isSavingTimer, setIsSavingTimer] = useState(false)
+  const [isSendingEmailTest, setIsSendingEmailTest] = useState(false)
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -187,6 +193,26 @@ export default function SettingsPage() {
     setAccountMessage('Account details saved')
     setIsSavingAccount(false)
     await refresh()
+  }
+
+  const sendTestEmail = async () => {
+    setIsSendingEmailTest(true)
+    setEmailTestMessage(null)
+
+    const response = await fetch('/api/notifications/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      setEmailTestMessage(payload?.error ?? 'Unable to send test email')
+      setIsSendingEmailTest(false)
+      return
+    }
+
+    setEmailTestMessage('Test email sent')
+    setIsSendingEmailTest(false)
   }
 
   const savePassword = async () => {
@@ -510,6 +536,42 @@ export default function SettingsPage() {
               <CardDescription>Configure email preferences</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {[
+                {
+                  key: 'emailSessionComplete',
+                  label: 'Session Complete',
+                  desc: 'Receive an email after each completed focus session',
+                },
+                {
+                  key: 'emailWeeklyReport',
+                  label: 'Weekly Report',
+                  desc: 'Get a weekly summary of your study activity',
+                },
+                {
+                  key: 'emailRoomInvites',
+                  label: 'Room Invites',
+                  desc: 'Get an email when someone invites you to a study room',
+                },
+                {
+                  key: 'emailAchievements',
+                  label: 'Achievements',
+                  desc: 'Get notified when you unlock a new badge',
+                },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <FieldLabel className="mb-0">{item.label}</FieldLabel>
+                    <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <Switch
+                    checked={notifications[item.key as keyof typeof notifications]}
+                    onCheckedChange={(checked) =>
+                      setNotifications((prev) => ({ ...prev, [item.key]: checked }))
+                    }
+                  />
+                </div>
+              ))}
+
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <FieldLabel className="mb-0">Marketing Emails</FieldLabel>
@@ -534,6 +596,19 @@ export default function SettingsPage() {
                   }
                 />
               </div>
+
+              <div className="flex items-center gap-3">
+                <Button onClick={() => void savePreferences()} disabled={isSavingPrefs}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isSavingPrefs ? 'Saving...' : 'Save Preferences'}
+                </Button>
+                <Button variant="secondary" onClick={() => void sendTestEmail()} disabled={isSendingEmailTest}>
+                  <Bell className="mr-2 h-4 w-4" />
+                  {isSendingEmailTest ? 'Sending...' : 'Send Test Email'}
+                </Button>
+              </div>
+              {prefsMessage && <p className="text-sm text-muted-foreground">{prefsMessage}</p>}
+              {emailTestMessage && <p className="text-sm text-muted-foreground">{emailTestMessage}</p>}
             </CardContent>
           </Card>
         </TabsContent>

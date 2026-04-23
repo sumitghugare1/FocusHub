@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { formatDistanceToNow } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -34,11 +35,48 @@ interface HeaderProps {
   showMenuButton?: boolean
 }
 
+type NotificationItem = {
+  id: string
+  type: string
+  title: string
+  message: string
+  created_at: string
+  is_read: boolean
+}
+
 export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
   const router = useRouter()
   const [isDark, setIsDark] = useState(true)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
   const { user: currentUser } = useCurrentUser()
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadNotifications = async () => {
+      setIsLoadingNotifications(true)
+      const response = await fetch('/api/notifications', { cache: 'no-store' })
+      const payload = await response.json().catch(() => null)
+
+      if (!isMounted) return
+
+      if (response.ok && payload?.success) {
+        setNotifications(payload.notifications ?? [])
+        setUnreadCount(payload.unreadCount ?? 0)
+      }
+
+      setIsLoadingNotifications(false)
+    }
+
+    void loadNotifications()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const toggleTheme = () => {
     setIsDark(!isDark)
@@ -104,9 +142,11 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-                3
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
               <span className="sr-only">Notifications</span>
             </Button>
           </DropdownMenuTrigger>
@@ -114,21 +154,28 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
             <DropdownMenuLabel>Notifications</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <div className="max-h-80 overflow-y-auto">
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <span className="font-medium text-sm">New badge earned!</span>
-                <span className="text-xs text-muted-foreground">You earned the &quot;Focus Master&quot; badge</span>
-                <span className="text-xs text-muted-foreground">2 hours ago</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <span className="font-medium text-sm">Study streak milestone</span>
-                <span className="text-xs text-muted-foreground">You&apos;re on a 12-day streak! Keep it up!</span>
-                <span className="text-xs text-muted-foreground">5 hours ago</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <span className="font-medium text-sm">Room invitation</span>
-                <span className="text-xs text-muted-foreground">Sarah invited you to &quot;CS Study Group&quot;</span>
-                <span className="text-xs text-muted-foreground">1 day ago</span>
-              </DropdownMenuItem>
+              {isLoadingNotifications ? (
+                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3" disabled>
+                  <span className="text-sm text-muted-foreground">Loading notifications...</span>
+                </DropdownMenuItem>
+              ) : notifications.length > 0 ? (
+                notifications.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.id}
+                    className={`flex flex-col items-start gap-1 p-3 ${notification.is_read ? '' : 'bg-muted/40'}`}
+                  >
+                    <span className="font-medium text-sm">{notification.title}</span>
+                    <span className="text-xs text-muted-foreground">{notification.message}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                    </span>
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3" disabled>
+                  <span className="text-sm text-muted-foreground">No notifications yet</span>
+                </DropdownMenuItem>
+              )}
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="justify-center text-primary cursor-pointer">

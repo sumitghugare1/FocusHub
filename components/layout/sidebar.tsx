@@ -21,6 +21,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
   Flame,
 } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -32,6 +33,7 @@ interface SidebarProps {
 
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { title: 'AI Coach', href: '/coach', icon: Sparkles },
   { title: 'Timer', href: '/timer', icon: Timer },
   { title: 'Study Planner', href: '/planner', icon: BookOpen },
   { title: 'Study Rooms', href: '/rooms', icon: Users },
