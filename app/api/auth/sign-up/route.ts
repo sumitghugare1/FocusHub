@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 import { createRouteClient } from '@/lib/supabase/route-client'
 import { signUpSchema } from '@/lib/auth/schemas'
 
@@ -40,6 +41,44 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+  }
+
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  // If email confirmations are enabled in Supabase, auto-confirm and sign in immediately.
+  if (!data.session && data.user && serviceRoleKey) {
+    const adminClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceRoleKey,
+      {
+        cookies: {
+          getAll() {
+            return []
+          },
+          setAll() {
+            // No cookies are needed for admin operations.
+          },
+        },
+      },
+    )
+
+    const { error: confirmError } = await adminClient.auth.admin.updateUserById(data.user.id, {
+      email_confirm: true,
+    })
+
+    if (!confirmError) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      })
+
+      if (!signInError) {
+        return new Response(JSON.stringify({ success: true, requiresEmailVerification: false }), {
+          status: 200,
+          headers: response.headers,
+        })
+      }
+    }
   }
 
   const payload = {
