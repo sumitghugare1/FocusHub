@@ -12,6 +12,7 @@ import {
   Activity,
   LayoutDashboard,
   BookOpen,
+  Brain,
   Timer,
   Users,
   BarChart3,
@@ -34,6 +35,7 @@ interface SidebarProps {
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { title: 'AI Coach', href: '/coach', icon: Sparkles },
+  { title: 'Quiz', href: '/quiz', icon: Brain },
   { title: 'Timer', href: '/timer', icon: Timer },
   { title: 'Study Planner', href: '/planner', icon: BookOpen },
   { title: 'Study Rooms', href: '/rooms', icon: Users },

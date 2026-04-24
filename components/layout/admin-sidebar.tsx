@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Users,
   DoorOpen,
+  Brain,
   BarChart3,
   Settings,
   LogOut,
@@ -27,6 +28,7 @@ const navItems = [
   { title: 'Overview', href: '/admin', icon: LayoutDashboard },
   { title: 'Users', href: '/admin/users', icon: Users },
   { title: 'Rooms', href: '/admin/rooms', icon: DoorOpen },
+  { title: 'Quiz Manager', href: '/admin/quiz', icon: Brain },
   { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { title: 'Settings', href: '/admin/settings', icon: Settings },
 ]

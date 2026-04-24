@@ -15,6 +15,11 @@
 -- 10. 010_room_access_and_join_updates.sql - Room access policy + join helper functions
 -- 11. 011_backfill_leaderboard_entries.sql - One-time leaderboard backfill from historical sessions
 -- 12. 012_set_admin_profile_role.sql - One-time admin role assignment for configured admin email
+-- 13. 013_room_shared_resources.sql - Room shared notes/files resources
+-- 14. 014_study_planner.sql - Study planner items and policies
+-- 15. 015_ai_coach.sql - AI coach context and interaction logs
+-- 16. 016_quiz_feature.sql - Subject/language quiz categories, questions, attempts
+-- 17. 017_admin_quiz_policies.sql - Admin CRUD policies for quiz categories/questions
 
 -- You can copy-paste each file's content into the Supabase SQL Editor
 -- Or use the Supabase CLI: supabase db push
