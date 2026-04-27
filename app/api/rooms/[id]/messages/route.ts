@@ -44,9 +44,17 @@ export async function GET(
     return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
   }
 
+  // Delete expired messages before fetching
+  const { error: deleteError } = await supabase.rpc('delete_expired_messages')
+
+  if (deleteError) {
+    console.error('Error deleting expired messages:', deleteError)
+    // Continue even if deletion fails - don't break the response
+  }
+
   const { data: messages, error } = await supabase
     .from('room_messages')
-    .select('id, room_id, user_id, content, message_type, reply_to_id, created_at, profiles:user_id ( full_name, username, avatar_url )')
+    .select('id, room_id, user_id, content, message_type, reply_to_id, created_at, expires_at, is_pinned, author_role, profiles:user_id ( full_name, username, avatar_url )')
     .eq('room_id', id)
     .order('created_at', { ascending: true })
 
@@ -56,6 +64,10 @@ export async function GET(
 
   const mapped = (messages ?? []).map((message) => {
     const profile = Array.isArray(message.profiles) ? message.profiles[0] : message.profiles
+    const expiresAt = message.expires_at ? new Date(message.expires_at) : null
+    const now = new Date()
+    const expiresIn = expiresAt ? Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000)) : null
+
     return {
       id: message.id,
       roomId: message.room_id,
@@ -65,6 +77,10 @@ export async function GET(
       content: message.content,
       timestamp: message.created_at,
       messageType: message.message_type,
+      expiresAt: message.expires_at,
+      expiresIn, // seconds remaining until expiration
+      isPinned: message.is_pinned,
+      authorRole: message.author_role,
     }
   })
 
@@ -124,7 +140,7 @@ export async function POST(
       content: parsed.data.content,
       message_type: 'text',
     })
-    .select('id, room_id, user_id, content, message_type, reply_to_id, created_at, profiles:user_id ( full_name, username, avatar_url )')
+    .select('id, room_id, user_id, content, message_type, reply_to_id, created_at, expires_at, is_pinned, author_role, profiles:user_id ( full_name, username, avatar_url )')
     .single()
 
   if (error) {
@@ -132,6 +148,9 @@ export async function POST(
   }
 
   const profile = Array.isArray(insertedMessage.profiles) ? insertedMessage.profiles[0] : insertedMessage.profiles
+  const expiresAt = insertedMessage.expires_at ? new Date(insertedMessage.expires_at) : null
+  const now = new Date()
+  const expiresIn = expiresAt ? Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000)) : null
 
   return NextResponse.json(
     {
@@ -145,6 +164,10 @@ export async function POST(
         content: insertedMessage.content,
         timestamp: insertedMessage.created_at,
         messageType: insertedMessage.message_type,
+        expiresAt: insertedMessage.expires_at,
+        expiresIn,
+        isPinned: insertedMessage.is_pinned,
+        authorRole: insertedMessage.author_role,
       },
     },
     { headers: response.headers },

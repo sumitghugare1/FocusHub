@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({ success: true })
   const supabase = createRouteClient(request, response)
   const fullName = `${parsed.data.firstName.trim()} ${parsed.data.lastName.trim()}`.trim()
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '') || request.nextUrl.origin
 
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
         first_name: parsed.data.firstName.trim(),
         last_name: parsed.data.lastName.trim(),
       },
-      emailRedirectTo: `${request.nextUrl.origin}/auth/callback?next=/dashboard`,
+      emailRedirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
     },
   })
 

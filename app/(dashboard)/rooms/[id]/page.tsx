@@ -108,6 +108,10 @@ type RoomMessage = {
   content: string
   timestamp: string
   messageType?: 'text' | 'system' | 'achievement'
+  expiresAt?: string | null
+  expiresIn?: number | null
+  isPinned?: boolean
+  authorRole?: 'host' | 'moderator' | 'member'
 }
 
 export default function RoomPage() {
@@ -130,6 +134,7 @@ export default function RoomPage() {
   const [messageInput, setMessageInput] = useState('')
   const [messages, setMessages] = useState<RoomMessage[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [messageExpiryMap, setMessageExpiryMap] = useState<Record<string, number | null>>({})
 
   const [timerMode, setTimerMode] = useState<TimerMode>('focus')
   const [timeRemaining, setTimeRemaining] = useState(defaultTimerSettings.focusDuration * 60)
@@ -153,6 +158,19 @@ export default function RoomPage() {
     setIsLoadingRoom(false)
   }, [roomId])
 
+  // Helper function to compare if messages have changed
+  const areMessagesEqual = useCallback((oldMsgs: RoomMessage[], newMsgs: RoomMessage[]): boolean => {
+    if (oldMsgs.length !== newMsgs.length) return false
+    return oldMsgs.every((oldMsg, idx) => {
+      const newMsg = newMsgs[idx]
+      return (
+        oldMsg.id === newMsg.id &&
+        oldMsg.content === newMsg.content &&
+        oldMsg.isPinned === newMsg.isPinned
+      )
+    })
+  }, [])
+
   const loadMessages = useCallback(async () => {
     if (!room) return
 
@@ -161,13 +179,18 @@ export default function RoomPage() {
     const payload = await response.json().catch(() => null)
 
     if (response.ok && payload?.messages) {
-      setMessages(payload.messages)
+      // Only update state if messages actually changed (prevents unnecessary re-renders)
+      if (!areMessagesEqual(messages, payload.messages)) {
+        setMessages(payload.messages)
+      }
     } else {
-      setMessages([])
+      if (messages.length > 0) {
+        setMessages([])
+      }
     }
 
     setIsLoadingMessages(false)
-  }, [room])
+  }, [room, messages, areMessagesEqual])
 
   useEffect(() => {
     if (roomId) {
@@ -210,9 +233,11 @@ export default function RoomPage() {
 
     void loadMessages()
 
+    // Poll for new messages every 30 seconds (reduced from 5s to minimize server load)
+    // Message comparison prevents unnecessary UI updates even if nothing changed
     const interval = window.setInterval(() => {
       void loadMessages()
-    }, 5000)
+    }, 30000)
 
     return () => window.clearInterval(interval)
   }, [chatOpen, room, loadMessages])
@@ -241,6 +266,35 @@ export default function RoomPage() {
       if (interval) clearInterval(interval)
     }
   }, [isRunning, timeRemaining])
+
+  // Update countdown timers for expiring messages
+  useEffect(() => {
+    if (!chatOpen || messages.length === 0) return
+
+    const updateExpiryMap = () => {
+      const newMap: Record<string, number | null> = {}
+      const now = Date.now()
+
+      messages.forEach((msg) => {
+        if (msg.expiresAt) {
+          const expiresAtTime = new Date(msg.expiresAt).getTime()
+          const secondsRemaining = Math.max(0, Math.floor((expiresAtTime - now) / 1000))
+          newMap[msg.id] = secondsRemaining
+        } else {
+          newMap[msg.id] = null
+        }
+      })
+
+      setMessageExpiryMap(newMap)
+    }
+
+    updateExpiryMap()
+
+    // Update countdown every 10 seconds
+    const interval = window.setInterval(updateExpiryMap, 10000)
+
+    return () => window.clearInterval(interval)
+  }, [chatOpen, messages])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -282,6 +336,41 @@ export default function RoomPage() {
       setMessages((prev) => [...prev, payload.message])
     }
     setMessageInput('')
+  }
+
+  const formatExpirationTime = (seconds: number | null): string => {
+    if (seconds === null || seconds === undefined) return ''
+    if (seconds <= 0) return 'expired'
+    
+    const hours = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    
+    if (hours > 0) {
+      return `expires in ${hours}h ${mins}m`
+    }
+    return `expires in ${mins}m`
+  }
+
+  const handlePinMessage = async (messageId: string) => {
+    if (!room) return
+
+    const response = await fetch(`/api/rooms/${room.id}/messages/${messageId}/pin`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const payload = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      setRoomError(payload?.error ?? 'Unable to pin message')
+      return
+    }
+
+    if (payload?.message) {
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === messageId ? payload.message : msg))
+      )
+    }
   }
 
   const handleJoinPrivateRoom = async () => {
@@ -501,18 +590,59 @@ export default function RoomPage() {
                 <SheetTitle>Room Chat</SheetTitle>
               </SheetHeader>
               <ScrollArea className="flex-1 py-4">
-                <div className="space-y-3">
+                <div className="space-y-3 pr-4">
                   {isLoadingMessages ? (
                     <p className="text-sm text-muted-foreground">Loading messages...</p>
                   ) : messages.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No messages yet.</p>
                   ) : (
-                    messages.map((message) => (
-                      <div key={message.id} className="rounded-lg bg-muted px-3 py-2">
-                        <p className="text-xs text-muted-foreground">{message.userName}</p>
-                        <p className="text-sm">{message.content}</p>
-                      </div>
-                    ))
+                    messages.map((message) => {
+                      const expirySeconds = messageExpiryMap[message.id]
+                      const isExpiringSoon = expirySeconds !== null && expirySeconds > 0 && expirySeconds < 3600 // less than 1 hour
+                      const canPin = room?.isHost || currentUser?.id === room?.hostId
+
+                      return (
+                        <div
+                          key={message.id}
+                          className={cn(
+                            'rounded-lg px-3 py-2 transition-opacity',
+                            isExpiringSoon ? 'bg-muted opacity-75' : 'bg-muted',
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">
+                                {message.userName}
+                                {message.isPinned && <span className="ml-1 text-yellow-600 dark:text-yellow-400">📌</span>}
+                              </p>
+                              <p className="text-sm break-words">{message.content}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(message.timestamp).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                                {expirySeconds !== null && expirySeconds > 0 && (
+                                  <p className={cn('text-xs', isExpiringSoon ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground')}>
+                                    {formatExpirationTime(expirySeconds)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {canPin && (
+                              <button
+                                onClick={() => void handlePinMessage(message.id)}
+                                className="mt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                title={message.isPinned ? 'Unpin message' : 'Pin message'}
+                              >
+                                {message.isPinned ? '📌' : '📍'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
                   )}
                 </div>
               </ScrollArea>
