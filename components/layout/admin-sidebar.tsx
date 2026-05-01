@@ -12,11 +12,11 @@ import {
   DoorOpen,
   Brain,
   BarChart3,
-  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
+  Mail,
 } from 'lucide-react'
 
 interface AdminSidebarProps {
@@ -29,6 +29,7 @@ const navItems = [
   { title: 'Users', href: '/admin/users', icon: Users },
   { title: 'Rooms', href: '/admin/rooms', icon: DoorOpen },
   { title: 'Quiz Manager', href: '/admin/quiz', icon: Brain },
+  { title: 'Email Campaigns', href: '/admin/email-campaigns', icon: Mail },
   { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
 ]
 

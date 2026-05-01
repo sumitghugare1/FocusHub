@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteClient } from '@/lib/supabase/route-client'
-import { sendTestNotificationEmail, isEmailConfigured } from '@/lib/notifications/email'
+import { getEmailConfigurationStatus, sendTestNotificationEmail } from '@/lib/notifications/email'
 
 export async function POST(request: NextRequest) {
-  if (!isEmailConfigured()) {
+  const emailStatus = getEmailConfigurationStatus()
+
+  if (!emailStatus.configured) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Email service is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM_EMAIL.',
+        error: 'Email service is not configured for Gmail SMTP. Set SMTP_SERVICE=gmail or SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM_EMAIL.',
+        issues: emailStatus.issues,
       },
       { status: 400 },
     )

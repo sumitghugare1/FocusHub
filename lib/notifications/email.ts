@@ -19,7 +19,74 @@ type SendEmailResult = {
   error?: string
 }
 
+type EmailConfigIssue = {
+  field: string
+  message: string
+}
+
 let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null
+
+function normalizeAppPassword(value: string | undefined) {
+  return value?.replace(/\s+/g, '').trim() ?? ''
+}
+
+function getEmailConfigIssues(): EmailConfigIssue[] {
+  const issues: EmailConfigIssue[] = []
+
+  const fromName = process.env.SMTP_FROM_NAME?.trim() || process.env.NEXT_PUBLIC_SITE_NAME?.trim()
+  const service = process.env.SMTP_SERVICE?.trim()
+  const host = process.env.SMTP_HOST?.trim()
+  const portValue = process.env.SMTP_PORT?.trim()
+  const port = Number(portValue ?? '587')
+  const user = process.env.SMTP_USER?.trim()
+  const pass = normalizeAppPassword(process.env.SMTP_PASSWORD)
+  const isGmail = service === 'gmail' || host === 'smtp.gmail.com'
+  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || process.env.NEXT_PUBLIC_FROM_EMAIL?.trim() || user
+
+  if (!fromEmail && !isGmail) {
+    issues.push({
+      field: 'SMTP_FROM_EMAIL',
+      message: 'Set SMTP_FROM_EMAIL to the sender address or use the Gmail inbox in SMTP_USER.',
+    })
+  }
+
+  if (!fromName) {
+    issues.push({
+      field: 'SMTP_FROM_NAME',
+      message: 'Set SMTP_FROM_NAME so outbound mail shows a friendly sender name.',
+    })
+  }
+
+  if (!service && !host) {
+    issues.push({
+      field: 'SMTP_HOST',
+      message: 'Set SMTP_HOST to smtp.gmail.com or use SMTP_SERVICE=gmail.',
+    })
+  }
+
+  if (Number.isNaN(port) || port <= 0) {
+    issues.push({
+      field: 'SMTP_PORT',
+      message: 'Set SMTP_PORT to 587 for Gmail App Password SMTP.',
+    })
+  }
+
+  if (!user) {
+    issues.push({
+      field: 'SMTP_USER',
+      message: 'Set SMTP_USER to the Gmail inbox address.',
+    })
+  }
+
+  if (!pass) {
+    issues.push({
+      field: 'SMTP_PASSWORD',
+      message: 'Set SMTP_PASSWORD to a Google App Password. Spaces will be ignored.',
+    })
+  }
+
+  return issues
+}
 
 function escapeHtml(value: string) {
   return value
@@ -31,14 +98,18 @@ function escapeHtml(value: string) {
 }
 
 function getFromAddress() {
-  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || process.env.NEXT_PUBLIC_FROM_EMAIL?.trim()
+  const service = process.env.SMTP_SERVICE?.trim()
+  const host = process.env.SMTP_HOST?.trim()
+  const gmailUser = process.env.SMTP_USER?.trim()
+  const fromEmail = process.env.SMTP_FROM_EMAIL?.trim() || process.env.NEXT_PUBLIC_FROM_EMAIL?.trim() || gmailUser
   const fromName = process.env.SMTP_FROM_NAME?.trim() || process.env.NEXT_PUBLIC_SITE_NAME?.trim() || 'FocusHub'
+  const isGmail = service === 'gmail' || host === 'smtp.gmail.com'
 
-  if (!fromEmail) {
+  if (!fromEmail || (isGmail && !gmailUser)) {
     return null
   }
 
-  return `${fromName} <${fromEmail}>`
+  return `${fromName} <${isGmail && gmailUser ? gmailUser : fromEmail}>`
 }
 
 function getTransporter() {
@@ -46,21 +117,29 @@ function getTransporter() {
     return cachedTransporter
   }
 
+  const service = process.env.SMTP_SERVICE?.trim()
   const host = process.env.SMTP_HOST?.trim()
   const port = Number(process.env.SMTP_PORT ?? '587')
   const user = process.env.SMTP_USER?.trim()
-  const pass = process.env.SMTP_PASSWORD?.trim()
+  const pass = normalizeAppPassword(process.env.SMTP_PASSWORD)
 
-  if (!host || Number.isNaN(port) || port <= 0) {
+  if (!service && (!host || Number.isNaN(port) || port <= 0)) {
     return null
   }
 
-  cachedTransporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: process.env.SMTP_SECURE === 'true' || port === 465,
-    auth: user && pass ? { user, pass } : undefined,
-  })
+  const transportConfig = service
+    ? {
+        service,
+        auth: user && pass ? { user, pass } : undefined,
+      }
+    : {
+        host,
+        port,
+        secure: process.env.SMTP_SECURE === 'true' || port === 465,
+        auth: user && pass ? { user, pass } : undefined,
+      }
+
+  cachedTransporter = nodemailer.createTransport(transportConfig)
 
   return cachedTransporter
 }
@@ -107,6 +186,60 @@ function renderPlainText({ headline, preheader, bodyLines, cta, footer }: Omit<S
   return lines.filter(Boolean).join('\n')
 }
 
+function substituteVariables(template: string, variables: Record<string, string>): string {
+  let result = template
+  Object.entries(variables).forEach(([key, value]) => {
+    const placeholder = `{{${key}}}`
+    result = result.replaceAll(placeholder, value)
+  })
+  return result
+}
+
+type SendCampaignEmailArgs = {
+  to: string
+  subject: string
+  htmlContent: string
+  plainTextContent?: string
+  variables?: Record<string, string>
+}
+
+async function sendCampaignEmail(args: SendCampaignEmailArgs): Promise<SendEmailResult> {
+  const transporter = getTransporter()
+  const from = getFromAddress()
+
+  if (!transporter || !from) {
+    return { sent: false, error: 'Email service is not configured' }
+  }
+
+  const variables = args.variables ?? {}
+  const subject = substituteVariables(args.subject, variables)
+  const html = substituteVariables(args.htmlContent, variables)
+  const text = args.plainTextContent ? substituteVariables(args.plainTextContent, variables) : undefined
+
+  const body = {
+    from,
+    to: args.to,
+    subject,
+    html,
+    text,
+  }
+
+  try {
+    const result = await transporter.sendMail(body)
+    return { sent: true, messageId: result.messageId }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to send email'
+    if (message.includes('535-5.7.8') || message.includes('BadCredentials') || message.includes('Username and Password not accepted')) {
+      return {
+        sent: false,
+        error:
+          'Gmail rejected the SMTP login. Use the Google App Password from the same Gmail account in SMTP_USER, with 2-Step Verification enabled. The app password can be pasted with or without spaces.',
+      }
+    }
+    return { sent: false, error: message }
+  }
+}
+
 async function sendEmail(args: SendNotificationEmailArgs): Promise<SendEmailResult> {
   const transporter = getTransporter()
   const from = getFromAddress()
@@ -127,12 +260,29 @@ async function sendEmail(args: SendNotificationEmailArgs): Promise<SendEmailResu
     const result = await transporter.sendMail(body)
     return { sent: true, messageId: result.messageId }
   } catch (error) {
-    return { sent: false, error: error instanceof Error ? error.message : 'Unable to send email' }
+    const message = error instanceof Error ? error.message : 'Unable to send email'
+    if (message.includes('535-5.7.8') || message.includes('BadCredentials') || message.includes('Username and Password not accepted')) {
+      return {
+        sent: false,
+        error:
+          'Gmail rejected the SMTP login. Use the Google App Password from the same Gmail account in SMTP_USER, with 2-Step Verification enabled. The app password can be pasted with or without spaces.',
+      }
+    }
+    return { sent: false, error: message }
   }
 }
 
 export function isEmailConfigured() {
   return Boolean(getTransporter() && getFromAddress())
+}
+
+export function getEmailConfigurationStatus() {
+  const issues = getEmailConfigIssues()
+
+  return {
+    configured: issues.length === 0,
+    issues,
+  }
 }
 
 export async function sendSessionCompleteEmail(args: {
@@ -207,3 +357,5 @@ export async function sendCoachNudgeEmail(args: {
     footer: 'You can manage these reminders in your FocusHub notification settings.',
   })
 }
+
+export { sendCampaignEmail, substituteVariables }

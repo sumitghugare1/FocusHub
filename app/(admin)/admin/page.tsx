@@ -8,14 +8,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Users,
   DoorOpen,
-  Clock,
-  TrendingUp,
-  AlertTriangle,
-  ArrowUpRight,
-  ArrowDownRight,
   Activity,
   Server,
   Shield,
+  Clock,
+  ArrowUpRight,
+  ArrowDownRight,
+  TrendingUp,
 } from "lucide-react"
 import {
   AreaChart,

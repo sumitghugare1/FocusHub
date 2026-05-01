@@ -607,6 +607,120 @@ export interface Database {
           updated_at?: string
         }
       }
+      email_templates: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          subject: string
+          html_content: string
+          plain_text_content: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          subject: string
+          html_content: string
+          plain_text_content?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          subject?: string
+          html_content?: string
+          plain_text_content?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      email_campaigns: {
+        Row: {
+          id: string
+          template_id: string
+          name: string
+          description: string | null
+          user_segment_criteria: Json
+          scheduled_for: string | null
+          status: 'draft' | 'pending' | 'sent' | 'failed'
+          created_by: string
+          sent_count: number
+          failed_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          name: string
+          description?: string | null
+          user_segment_criteria: Json
+          scheduled_for?: string | null
+          status?: 'draft' | 'pending' | 'sent' | 'failed'
+          created_by: string
+          sent_count?: number
+          failed_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          name?: string
+          description?: string | null
+          user_segment_criteria?: Json
+          scheduled_for?: string | null
+          status?: 'draft' | 'pending' | 'sent' | 'failed'
+          created_by?: string
+          sent_count?: number
+          failed_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      email_campaign_logs: {
+        Row: {
+          id: string
+          campaign_id: string
+          user_id: string
+          email: string
+          status: 'pending' | 'sent' | 'failed'
+          error_message: string | null
+          attempted_at: string | null
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          campaign_id: string
+          user_id: string
+          email: string
+          status?: 'pending' | 'sent' | 'failed'
+          error_message?: string | null
+          attempted_at?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          campaign_id?: string
+          user_id?: string
+          email?: string
+          status?: 'pending' | 'sent' | 'failed'
+          error_message?: string | null
+          attempted_at?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+      }
     }
     Functions: {
       is_admin: {
@@ -728,3 +842,6 @@ export type LeaderboardEntry = Database['public']['Tables']['leaderboard_entries
 export type Friendship = Database['public']['Tables']['friendships']['Row']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type ActivityFeedItem = Database['public']['Tables']['activity_feed']['Row']
+export type EmailTemplate = Database['public']['Tables']['email_templates']['Row']
+export type EmailCampaign = Database['public']['Tables']['email_campaigns']['Row']
+export type EmailCampaignLog = Database['public']['Tables']['email_campaign_logs']['Row']
