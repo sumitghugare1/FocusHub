@@ -18,10 +18,10 @@ type Campaign = {
   name: string
   description?: string
   status: 'draft' | 'pending' | 'sent' | 'failed'
-  sent_count: number
-  failed_count: number
-  created_at: string
-  scheduled_for?: string
+  sentCount: number
+  failedCount: number
+  createdAt: string
+  scheduledFor?: string
 }
 
 type EmailLog = {
@@ -126,8 +126,11 @@ export default function CampaignHistory({ refreshKey }: CampaignHistoryProps) {
   return (
     <div className="space-y-4">
       {campaigns.map((campaign) => {
-        const totalRecipients = campaign.sent_count + campaign.failed_count
-        const successRate = totalRecipients > 0 ? ((campaign.sent_count / totalRecipients) * 100).toFixed(1) : 0
+        const sentCount = Number(campaign.sentCount) || 0
+        const failedCount = Number(campaign.failedCount) || 0
+        const totalRecipients = sentCount + failedCount
+        const successRate = totalRecipients > 0 ? ((sentCount / totalRecipients) * 100).toFixed(1) : 0
+        const createdDate = campaign.createdAt ? new Date(campaign.createdAt).toLocaleDateString() : 'N/A'
 
         return (
           <Card key={campaign.id}>
@@ -152,11 +155,11 @@ export default function CampaignHistory({ refreshKey }: CampaignHistoryProps) {
                 </div>
                 <div className="rounded-lg border p-3 border-green-200 bg-green-50">
                   <p className="text-xs text-muted-foreground">Sent</p>
-                  <p className="text-xl font-bold text-green-700">{campaign.sent_count}</p>
+                  <p className="text-xl font-bold text-green-700">{sentCount}</p>
                 </div>
                 <div className="rounded-lg border p-3 border-red-200 bg-red-50">
                   <p className="text-xs text-muted-foreground">Failed</p>
-                  <p className="text-xl font-bold text-red-700">{campaign.failed_count}</p>
+                  <p className="text-xl font-bold text-red-700">{failedCount}</p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Success Rate</p>
@@ -165,7 +168,7 @@ export default function CampaignHistory({ refreshKey }: CampaignHistoryProps) {
               </div>
 
               <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Created: {new Date(campaign.created_at).toLocaleDateString()}</span>
+                <span>Created: {createdDate}</span>
                 <Button
                   variant="ghost"
                   size="sm"
