@@ -30,7 +30,6 @@ const navItems = [
   { title: 'Rooms', href: '/admin/rooms', icon: DoorOpen },
   { title: 'Quiz Manager', href: '/admin/quiz', icon: Brain },
   { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-  { title: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 
 export function AdminSidebar({ collapsed = false, onToggle }: AdminSidebarProps) {

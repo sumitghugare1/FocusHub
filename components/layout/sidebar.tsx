@@ -18,7 +18,6 @@ import {
   BarChart3,
   Trophy,
   User,
-  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -46,7 +45,6 @@ const navItems = [
 
 const bottomNavItems = [
   { title: 'Profile', href: '/profile', icon: User },
-  { title: 'Settings', href: '/settings', icon: Settings },
 ]
 
 export function Sidebar({ collapsed = false, onToggle }: SidebarProps) {

@@ -215,12 +215,7 @@ export function Header({ onMenuClick, showMenuButton = false }: HeaderProps) {
                 <span>Profile</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </DropdownMenuItem>
+            {/* Settings removed per request */}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="flex items-center gap-2 text-destructive cursor-pointer"

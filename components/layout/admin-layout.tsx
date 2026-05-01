@@ -6,6 +6,7 @@ import { AdminSidebar } from './admin-sidebar'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Menu, Bell, Search } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -98,6 +99,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -134,7 +136,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-destructive"
                   onSelect={(event) => {
